@@ -53,6 +53,35 @@ namespace cilantro {
             this->transform_init_.setIdentity();
         }
 
+        CombinedMetricSparseWarpFieldICP(const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &dst_p,
+                                         const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &dst_n,
+                                         const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &src_p,
+                                         const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &control_p,
+                                         CorrespondenceSearchEngineT &corr_engine,
+                                         PointToPointCorrWeightEvaluatorT &point_corr_eval,
+                                         PointToPlaneCorrWeightEvaluatorT &plane_corr_eval,
+                                         const NeighborhoodSet<typename TransformT::Scalar> &src_to_ctrl_neighborhoods,
+                                         size_t num_ctrl_nodes,
+                                         ControlWeightEvaluatorT &control_eval,
+                                         const NeighborhoodSet<typename TransformT::Scalar> &ctrl_regularization_neighborhoods,
+                                         RegularizationWeightEvaluatorT &reg_eval)
+                : Base(corr_engine),
+                  dst_points_(dst_p), dst_normals_(dst_n), src_points_(src_p), control_points_(control_p),
+                  src_to_ctrl_neighborhoods_(src_to_ctrl_neighborhoods), num_ctrl_nodes_(num_ctrl_nodes),
+                  ctrl_regularization_neighborhoods_(ctrl_regularization_neighborhoods),
+                  point_to_point_weight_((typename TransformT::Scalar)0.0), point_to_plane_weight_((typename TransformT::Scalar)1.0),
+                  stiffness_weight_((typename TransformT::Scalar)1.0), huber_boundary_((typename TransformT::Scalar)1e-4),
+                  max_gauss_newton_iterations_(10), gauss_newton_convergence_tol_((typename TransformT::Scalar)1e-5),
+                  max_conjugate_gradient_iterations_(1000), conjugate_gradient_convergence_tol_((typename TransformT::Scalar)1e-5),
+                  point_corr_eval_(point_corr_eval), plane_corr_eval_(plane_corr_eval),
+                  control_eval_(control_eval), reg_eval_(reg_eval),
+                  src_points_trans_(src_points_.rows(), src_points_.cols()),
+                  transform_dense_(src_points_.cols()), transform_iter_(num_ctrl_nodes_)
+        {
+            this->transform_init_.resize(num_ctrl_nodes_);
+            this->transform_init_.setIdentity();
+        }
+
         inline PointToPointCorrespondenceWeightEvaluator& pointToPointCorrespondenceWeightEvaluator() {
             return point_corr_eval_;
         }
@@ -129,6 +158,7 @@ namespace cilantro {
         ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> dst_points_;
         ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> dst_normals_;
         ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> src_points_;
+        ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> control_points_;
         const NeighborhoodSet<typename TransformT::Scalar>& src_to_ctrl_neighborhoods_;
         size_t num_ctrl_nodes_;
         const NeighborhoodSet<typename TransformT::Scalar>& ctrl_regularization_neighborhoods_;
@@ -167,6 +197,7 @@ namespace cilantro {
 
             CorrespondenceSearchCombinedMetricAdaptor<CorrespondenceSearchEngineT> corr_getter_proxy(this->correspondence_search_engine_);
             estimateSparseWarpFieldCombinedMetric(dst_points_, dst_normals_, src_points_trans_, corr_getter_proxy.getPointToPointCorrespondences(), point_to_point_weight_, corr_getter_proxy.getPointToPlaneCorrespondences(), point_to_plane_weight_, src_to_ctrl_neighborhoods_, num_ctrl_nodes_, ctrl_regularization_neighborhoods_, stiffness_weight_, transform_iter_, huber_boundary_, max_gauss_newton_iterations_, gauss_newton_convergence_tol_, max_conjugate_gradient_iterations_, conjugate_gradient_convergence_tol_, point_corr_eval_, plane_corr_eval_, control_eval_, reg_eval_);
+            estimateSparseWarpFieldCombinedMetricARAP(dst_points_, dst_normals_, src_points_trans_, control_points_, corr_getter_proxy.getPointToPointCorrespondences(), point_to_point_weight_, corr_getter_proxy.getPointToPlaneCorrespondences(), point_to_plane_weight_, src_to_ctrl_neighborhoods_, num_ctrl_nodes_, ctrl_regularization_neighborhoods_, stiffness_weight_, transform_iter_, huber_boundary_, max_gauss_newton_iterations_, gauss_newton_convergence_tol_, max_conjugate_gradient_iterations_, conjugate_gradient_convergence_tol_, point_corr_eval_, plane_corr_eval_, control_eval_, reg_eval_);
             this->transform_.preApply(transform_iter_);
             resampleTransforms(this->transform_, src_to_ctrl_neighborhoods_, transform_dense_, control_eval_);
 

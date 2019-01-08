@@ -61,7 +61,8 @@ int main(int argc, char ** argv) {
     timer.start();
 
 //    cilantro::SimpleCombinedMetricSparseAffineWarpFieldICP3f icp(dst.points, dst.normals, src.points, src_to_control_nn, control_points.cols(), regularization_nn);
-    cilantro::SimpleCombinedMetricSparseRigidWarpFieldICP3f icp(dst.points, dst.normals, src.points, src_to_control_nn, control_points.cols(), regularization_nn);
+    // cilantro::SimpleCombinedMetricSparseRigidWarpFieldICP3f icp(dst.points, dst.normals, src.points, src_to_control_nn, control_points.cols(), regularization_nn);
+    cilantro::SimpleCombinedMetricSparseRigidWarpFieldICP3f icp(dst.points, dst.normals, src.points, control_points, src_to_control_nn, control_points.cols(), regularization_nn);
 
     // Parameter setting
     icp.correspondenceSearchEngine().setMaxDistance(max_correspondence_dist_sq);

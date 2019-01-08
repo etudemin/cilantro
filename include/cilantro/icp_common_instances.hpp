@@ -163,6 +163,17 @@ namespace cilantro {
                     : DefaultCombinedMetricSparseWarpFieldICPEntities<TransformT,CorrSearchT>(dst_points, src_points),
                       DefaultCombinedMetricSparseWarpFieldICP<TransformT,CorrSearchT>(dst_points, dst_normals, src_points, this->corr_search_, this->point_corr_weight_eval_, this->plane_corr_weight_eval_, src_to_control_neighborhoods, num_control_nodes, this->control_weight_eval_, control_regularization_neighborhoods, this->reg_weight_eval_)
             {}
+
+            SimpleCombinedMetricSparseWarpFieldICPWrapper(const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &dst_points,
+                                                          const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &dst_normals,
+                                                          const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &src_points,
+                                                          const ConstVectorSetMatrixMap<typename TransformT::Scalar,TransformT::Dim> &control_points,
+                                                          const std::vector<NeighborSet<typename TransformT::Scalar>> &src_to_control_neighborhoods,
+                                                          size_t num_control_nodes,
+                                                          const std::vector<NeighborSet<typename TransformT::Scalar>> &control_regularization_neighborhoods)
+                    : DefaultCombinedMetricSparseWarpFieldICPEntities<TransformT,CorrSearchT>(dst_points, src_points),
+                      DefaultCombinedMetricSparseWarpFieldICP<TransformT,CorrSearchT>(dst_points, dst_normals, src_points, control_points, this->corr_search_, this->point_corr_weight_eval_, this->plane_corr_weight_eval_, src_to_control_neighborhoods, num_control_nodes, this->control_weight_eval_, control_regularization_neighborhoods, this->reg_weight_eval_)
+            {}
         };
 
         template <class TransformT>
