@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "core": "cpp",
+        "array": "cpp",
+        "fstream": "cpp",
+        "sstream": "cpp",
+        "thread": "cpp",
+        "tuple": "cpp",
+        "mutex": "cpp",
+        "image": "cpp"
+    }
+}

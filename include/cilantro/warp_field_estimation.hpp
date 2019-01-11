@@ -2016,69 +2016,7 @@ namespace cilantro {
                     }
                 }
 
-                // Regularization
-#pragma omp for nowait
-                for (size_t i = 0; i < regularization_neighborhoods.size(); i++) {
-                    eq_ind = num_data_term_equations + reg_eq_ind[i];
-                    nz_ind = outer_ptr[num_data_term_equations] + 2*reg_eq_ind[i];
-                    const auto& neighbors = regularization_neighborhoods[i];
-
-                    for (size_t j = 1; j < neighbors.size(); j++) {
-                        size_t s_offset = 6*neighbors[0].index;
-                        size_t n_offset = 6*neighbors[j].index;
-                        weight = regularization_weight_sqrt*std::sqrt(reg_evaluator(neighbors[0].index, neighbors[j].index, neighbors[j].value));
-
-                        if (n_offset < s_offset) std::swap(s_offset, n_offset);
-
-                        diff = tforms_vec[s_offset + 0] - tforms_vec[n_offset + 0];
-                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff, huber_boundary);
-                        values[nz_ind] = d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = s_offset;
-                        values[nz_ind] = -d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = n_offset;
-                        b[eq_ind++] = -weight*internal::sqrtHuberLoss<ScalarT>(diff, huber_boundary);
-
-                        diff = tforms_vec[s_offset + 1] - tforms_vec[n_offset + 1];
-                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff, huber_boundary);
-                        values[nz_ind] = d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = s_offset + 1;
-                        values[nz_ind] = -d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = n_offset + 1;
-                        b[eq_ind++] = -weight*internal::sqrtHuberLoss<ScalarT>(diff, huber_boundary);
-
-                        diff = tforms_vec[s_offset + 2] - tforms_vec[n_offset + 2];
-                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff, huber_boundary);
-                        values[nz_ind] = d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = s_offset + 2;
-                        values[nz_ind] = -d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = n_offset + 2;
-                        b[eq_ind++] = -weight*internal::sqrtHuberLoss<ScalarT>(diff, huber_boundary);
-
-                        diff = tforms_vec[s_offset + 3] - tforms_vec[n_offset + 3];
-                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff, huber_boundary);
-                        values[nz_ind] = d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = s_offset + 3;
-                        values[nz_ind] = -d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = n_offset + 3;
-                        b[eq_ind++] = -weight*internal::sqrtHuberLoss<ScalarT>(diff, huber_boundary);
-
-                        diff = tforms_vec[s_offset + 4] - tforms_vec[n_offset + 4];
-                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff, huber_boundary);
-                        values[nz_ind] = d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = s_offset + 4;
-                        values[nz_ind] = -d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = n_offset + 4;
-                        b[eq_ind++] = -weight*internal::sqrtHuberLoss<ScalarT>(diff, huber_boundary);
-
-                        diff = tforms_vec[s_offset + 5] - tforms_vec[n_offset + 5];
-                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff, huber_boundary);
-                        values[nz_ind] = d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = s_offset + 5;
-                        values[nz_ind] = -d_sqrt_huber_loss;
-                        inner_ind[nz_ind++] = n_offset + 5;
-                        b[eq_ind++] = -weight*internal::sqrtHuberLoss<ScalarT>(diff, huber_boundary);
-                    }
-                }
+                
             }
 
             // Solve linear system using CG
