@@ -1783,7 +1783,8 @@ namespace cilantro {
             num_reg_arcs = std::max((size_t)0, regularization_neighborhoods[0].size() - 1);
         }
         for (size_t i = 1; i < regularization_neighborhoods.size(); i++) {
-            reg_eq_ind[i] = reg_eq_ind[i-1] + 6*std::max((size_t)0, regularization_neighborhoods[i-1].size() - 1);
+            // The residual of ARAP term is 3-dimensional
+            reg_eq_ind[i] = reg_eq_ind[i-1] + 3*std::max((size_t)0, regularization_neighborhoods[i-1].size() - 1);
             num_reg_arcs += std::max((size_t)0, regularization_neighborhoods[i].size() - 1);
         }
 
@@ -1792,7 +1793,7 @@ namespace cilantro {
         const size_t num_point_to_point_equations = 3*has_point_to_point_terms*point_to_point_correspondences.size();
         const size_t num_point_to_plane_equations = has_point_to_plane_terms*point_to_plane_correspondences.size();
         const size_t num_data_term_equations = num_point_to_point_equations + num_point_to_plane_equations;
-        const size_t num_regularization_equations = 6*num_reg_arcs;
+        const size_t num_regularization_equations = 3*num_reg_arcs;
         const size_t num_equations = num_data_term_equations + num_regularization_equations;
 
         // Jacobian
@@ -1815,7 +1816,11 @@ namespace cilantro {
         }
 #pragma omp parallel for
         for (size_t i = 1; i < num_regularization_equations + 1; i++) {
-            outer_ptr[num_data_term_equations + i] = outer_ptr[num_data_term_equations] + 2*i;
+            // Number of terms we want to optimize in each ARAP equation: 2*6
+            // which includes the following terms:
+            // transformation of the source control point (3-dim translation Ti and 3-dim rotation Ri)
+            // and the transformation of specific neighboring control point (3-dim translation Tj and 3-dim rotation Rj)
+            outer_ptr[num_data_term_equations + i] = outer_ptr[num_data_term_equations] + 12*i;
         }
         At.reserve(outer_ptr[num_equations]);
         // Values
@@ -1851,14 +1856,21 @@ namespace cilantro {
         Eigen::Matrix<ScalarT,3,1> trans_s, d_rot_da_s, d_rot_db_s, d_rot_dc_s;
         Eigen::Matrix<ScalarT,3,1> angles_curr, trans_curr;
         Eigen::Matrix<ScalarT,Eigen::Dynamic,1> delta;
+        // Temporaries for the ARAP term
+        Eigen::Matrix<ScalarT,3,3> rot_coeffs_s, d_rot_coeffs_da_s, d_rot_coeffs_db_s, d_rot_coeffs_dc_s;
+        Eigen::Matrix<ScalarT,3,3> rot_coeffs_n, d_rot_coeffs_da_n, d_rot_coeffs_db_n, d_rot_coeffs_dc_n;
+        Eigen::Matrix<ScalarT,3,1> trans_n, d_rot_da_n, d_rot_db_n, d_rot_dc_n;
+        Eigen::Matrix<ScalarT,3,1> angles_curr_s, trans_curr_s, angles_curr_n, trans_curr_n;
+        Eigen::Matrix<ScalarT,3,1> s, n, diff3;
         ScalarT weight, corr_weight_sqrt, corr_weight_nrm, diff, d_sqrt_huber_loss, curr_delta_sq, max_delta_sq;
         size_t eq_ind, nz_ind;
 
         bool has_converged = false;
         size_t iter = 0;
         while (iter < max_gn_iter) {
-#pragma omp parallel shared (At, b) private (eq_ind, nz_ind, weight, corr_weight_sqrt, corr_weight_nrm, diff, d_sqrt_huber_loss, angles_curr, trans_curr, rot_coeffs, d_rot_coeffs_da, d_rot_coeffs_db, d_rot_coeffs_dc, trans_s, d_rot_da_s, d_rot_db_s, d_rot_dc_s)
-            {
+#pragma omp parallel shared (At, b) private (eq_ind, nz_ind, weight, corr_weight_sqrt, corr_weight_nrm, diff, d_sqrt_huber_loss, angles_curr, trans_curr, rot_coeffs, d_rot_coeffs_da, d_rot_coeffs_db, d_rot_coeffs_dc, trans_s, d_rot_da_s, d_rot_db_s, d_rot_dc_s, rot_coeffs_s, d_rot_coeffs_da_s, d_rot_coeffs_db_s, d_rot_coeffs_dc_s, rot_coeffs_n, d_rot_coeffs_da_n, d_rot_coeffs_db_n, d_rot_coeffs_dc_n, trans_n, d_rot_da_n, d_rot_db_n, d_rot_dc_n, angles_curr_s, trans_curr_s, angles_curr_n, trans_curr_n, s, n, diff3)
+
+{
                 // Data term
                 if (has_point_to_point_terms) {
 #pragma omp for nowait
@@ -2016,7 +2028,132 @@ namespace cilantro {
                     }
                 }
 
-                
+                // Implementaion of ARAP term (equation (4) from volumedeform)
+#pragma omp for nowait
+                for (size_t i = 0; i < regularization_neighborhoods.size(); i++) {
+                    eq_ind = num_data_term_equations + reg_eq_ind[i];
+                    nz_ind = outer_ptr[num_data_term_equations] + 12*reg_eq_ind[i];
+                    const auto& neighbors = regularization_neighborhoods[i];
+
+                    size_t s_offset = 6*neighbors[0].index; // [source control point] assign the offset
+                    const auto s = control_p.col(neighbors[0].index); // [source control point] assign the position
+
+                    // [source control point] compute the rotation matrix and its derivative
+                    angles_curr_s.noalias() = tforms_vec.template segment<3>(s_offset);
+                    trans_curr_s.noalias() = tforms_vec.template segment<3>(s_offset + 3);
+                    internal::computeRotationTerms(angles_curr_s[0], angles_curr_s[1], angles_curr_s[2], rot_coeffs_s, d_rot_coeffs_da_s, d_rot_coeffs_db_s, d_rot_coeffs_dc_s);
+                    trans_s.noalias() = (rot_coeffs_s.transpose()*s + trans_curr_s);
+                    
+                    for (size_t j = 1; j < neighbors.size(); j++) {
+                        size_t n_offset = 6*neighbors[j].index; // [neighbor] control point] assign the offset
+                        weight = regularization_weight_sqrt*std::sqrt(reg_evaluator(neighbors[0].index, neighbors[j].index, neighbors[j].value));
+
+                        if (n_offset < s_offset) std::swap(s_offset, n_offset);
+
+                        const auto n = control_p.col(neighbors[j].index);  // [neighbor] control point] assign the position
+
+                        // [neighbor control point] compute the rotation matrix and its derivative
+                        angles_curr_n.noalias() = tforms_vec.template segment<3>(n_offset);
+                        trans_curr_n.noalias() = tforms_vec.template segment<3>(n_offset + 3);
+                        internal::computeRotationTerms(angles_curr_n[0], angles_curr_n[1], angles_curr_n[2], rot_coeffs_n, d_rot_coeffs_da_n, d_rot_coeffs_db_n, d_rot_coeffs_dc_n);
+                        trans_n.noalias() = (rot_coeffs_n.transpose()*n + trans_curr_n);
+
+                        // the 3-dim diff3 (which is defined according to the equation (4) from volumedeform)
+                        diff3.noalias() = (trans_s - trans_n) - rot_coeffs_s.transpose() * (s - n);
+
+                        // [source control point]
+                        d_rot_da_s.noalias() = d_rot_coeffs_da_s.transpose() * n; // partial derivative of diff3 with respect to rot_a 
+                        d_rot_db_s.noalias() = d_rot_coeffs_db_s.transpose() * n; // partial derivative of diff3 with respect to rot_b
+                        d_rot_dc_s.noalias() = d_rot_coeffs_dc_s.transpose() * n; // partial derivative of diff3 with respect to rot_c
+
+                        // [neighbor control point]
+                        d_rot_da_n.noalias() = d_rot_coeffs_da_n.transpose() * n; // partial derivative of diff3 with respect to rot_a 
+                        d_rot_db_n.noalias() = d_rot_coeffs_db_n.transpose() * n; // partial derivative of diff3 with respect to rot_b 
+                        d_rot_dc_n.noalias() = d_rot_coeffs_dc_n.transpose() * n; // partial derivative of diff3 with respect to rot_c 
+                    
+
+                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff3[0], huber_boundary);
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_da_s[0];
+                        inner_ind[nz_ind++] = s_offset;
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_db_s[0];
+                        inner_ind[nz_ind++] = s_offset + 1;
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_dc_s[0];
+                        inner_ind[nz_ind++] = s_offset + 2;
+                        values[nz_ind] = -d_sqrt_huber_loss;
+                        inner_ind[nz_ind++] = s_offset + 3;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = s_offset + 4;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = s_offset + 5;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_da_n[0];
+                        inner_ind[nz_ind++] = n_offset;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_db_n[0];
+                        inner_ind[nz_ind++] = n_offset + 1;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_dc_n[0];
+                        inner_ind[nz_ind++] = n_offset + 2;
+                        values[nz_ind] = d_sqrt_huber_loss;
+                        inner_ind[nz_ind++] = n_offset + 3;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = n_offset + 4;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = n_offset + 5;
+                        b[eq_ind++] = weight*internal::sqrtHuberLoss<ScalarT>(diff3[0], huber_boundary);
+
+                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff3[1], huber_boundary);
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_da_s[1];
+                        inner_ind[nz_ind++] = s_offset;
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_db_s[1];
+                        inner_ind[nz_ind++] = s_offset + 1;
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_dc_s[1];
+                        inner_ind[nz_ind++] = s_offset + 2;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = s_offset + 3;
+                        values[nz_ind] = -d_sqrt_huber_loss;
+                        inner_ind[nz_ind++] = s_offset + 4;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = s_offset + 5;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_da_n[1];
+                        inner_ind[nz_ind++] = n_offset;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_db_n[1];
+                        inner_ind[nz_ind++] = n_offset + 1;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_dc_n[1];
+                        inner_ind[nz_ind++] = n_offset + 2;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = n_offset + 3;
+                        values[nz_ind] = d_sqrt_huber_loss;
+                        inner_ind[nz_ind++] = n_offset + 4;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = n_offset + 5;
+                        b[eq_ind++] = weight*internal::sqrtHuberLoss<ScalarT>(diff3[1], huber_boundary);
+
+                        d_sqrt_huber_loss = weight*internal::sqrtHuberLossDerivative<ScalarT>(diff3[2], huber_boundary);
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_da_s[2];
+                        inner_ind[nz_ind++] = s_offset;
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_db_s[2];
+                        inner_ind[nz_ind++] = s_offset + 1;
+                        values[nz_ind] = d_sqrt_huber_loss * -d_rot_dc_s[2];
+                        inner_ind[nz_ind++] = s_offset + 2;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = s_offset + 3;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = s_offset + 4;
+                        values[nz_ind] = -d_sqrt_huber_loss;
+                        inner_ind[nz_ind++] = s_offset + 5;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_da_n[2];
+                        inner_ind[nz_ind++] = n_offset;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_db_n[2];
+                        inner_ind[nz_ind++] = n_offset + 1;
+                        values[nz_ind] = d_sqrt_huber_loss * d_rot_dc_n[2];
+                        inner_ind[nz_ind++] = n_offset + 2;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = n_offset + 3;
+                        values[nz_ind] = (ScalarT)0.0;
+                        inner_ind[nz_ind++] = n_offset + 4;
+                        values[nz_ind] = d_sqrt_huber_loss;
+                        inner_ind[nz_ind++] = n_offset + 5;
+                        b[eq_ind++] = weight*internal::sqrtHuberLoss<ScalarT>(diff3[2], huber_boundary);  
+                    }
+                }
             }
 
             // Solve linear system using CG
