@@ -2048,7 +2048,7 @@ namespace cilantro {
                         size_t n_offset = 6*neighbors[j].index; // [neighbor] control point] assign the offset
                         weight = regularization_weight_sqrt*std::sqrt(reg_evaluator(neighbors[0].index, neighbors[j].index, neighbors[j].value));
 
-                        if (n_offset < s_offset) std::swap(s_offset, n_offset);
+                        // if (n_offset < s_offset) std::swap(s_offset, n_offset);
 
                         const auto n = control_p.col(neighbors[j].index);  // [neighbor] control point] assign the position
 
