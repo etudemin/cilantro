@@ -1725,7 +1725,7 @@ namespace cilantro {
                                               const ControlWeightEvaluatorT &control_evaluator = ControlWeightEvaluatorT(),
                                               const RegWeightEvaluatorT &reg_evaluator = RegWeightEvaluatorT())
     {
-        printf("In energy function with ARAP term\n");
+        printf("In energy function with new ARAP term\n");
         typedef typename TransformT::Scalar ScalarT;
 
         const bool has_point_to_point_terms = !point_to_point_correspondences.empty() && (point_to_point_weight > (ScalarT)0.0);
