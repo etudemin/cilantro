@@ -54,7 +54,7 @@ int main(int argc, char ** argv) {
     cilantro::NeighborhoodSet<float> src_to_control_nn = control_tree.search(src.points, cilantro::KNNNeighborhoodSpecification(4));
 
     // Get regularization neighborhoods for control nodes
-    cilantro::NeighborhoodSet<float> regularization_nn = control_tree.search(control_points, cilantro::KNNNeighborhoodSpecification(8));
+    cilantro::NeighborhoodSet<float> regularization_nn = control_tree.search(control_points, cilantro::KNNNeighborhoodSpecification(12));
 
     // Perform ICP registration
     cilantro::Timer timer;
@@ -72,7 +72,7 @@ int main(int argc, char ** argv) {
     icp.setMaxNumberOfIterations(15).setConvergenceTolerance(2.5e-3f);
     icp.setMaxNumberOfGaussNewtonIterations(1).setGaussNewtonConvergenceTolerance(5e-4f);
     icp.setMaxNumberOfConjugateGradientIterations(500).setConjugateGradientConvergenceTolerance(1e-5f);
-    icp.setPointToPointMetricWeight(0.0f).setPointToPlaneMetricWeight(1.0f).setStiffnessRegularizationWeight(2000.0f);
+    icp.setPointToPointMetricWeight(0.0f).setPointToPlaneMetricWeight(1.0f).setStiffnessRegularizationWeight(500.0f);
     icp.setHuberLossBoundary(1e-2f);
 
     auto tf_est = icp.estimate().getDenseWarpField();
