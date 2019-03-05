@@ -1414,7 +1414,7 @@ namespace cilantro {
 
         Eigen::SparseMatrix<ScalarT> AtA;
         Eigen::Matrix<ScalarT,Eigen::Dynamic,1> Atb;
-
+                                        
         // Parameters
         const ScalarT point_to_point_weight_sqrt = std::sqrt(point_to_point_weight);
         const ScalarT point_to_plane_weight_sqrt = std::sqrt(point_to_plane_weight);
@@ -1739,6 +1739,19 @@ namespace cilantro {
             transforms.setIdentity();
             return false;
         }
+        
+        // printf("size of point_to_point_correspondences: %d\n", point_to_point_correspondences.size());
+        // printf("size of point_to_plane_correspondences: %d\n", point_to_plane_correspondences.size());
+        // int same_num = 0;
+        // for(int i = 0; i < point_to_point_correspondences.size(); i++)
+        // {
+        //     if( (point_to_point_correspondences[i].indexInSecond == point_to_plane_correspondences[i].indexInSecond) &&
+        //         (point_to_point_correspondences[i].indexInFirst == point_to_plane_correspondences[i].indexInFirst) )
+        //     {
+        //         same_num ++;
+        //     }
+        // }
+        // printf("same_number = %d\n", same_num);
 
         // Sort control nodes by index and compute total weight
         NeighborhoodSet<ScalarT> src_to_ctrl_sorted(src_to_ctrl_neighborhoods.size());
@@ -1769,11 +1782,29 @@ namespace cilantro {
                         src_to_ctrl_sorted[i][j].index = src_to_ctrl_neighborhoods[i][j].index;
                         src_to_ctrl_sorted[i][j].value = control_evaluator(i, src_to_ctrl_neighborhoods[i][j].index, src_to_ctrl_neighborhoods[i][j].value);
                         total_weight[i] += src_to_ctrl_sorted[i][j].value;
+                        // printf("%d source point: control point = %d\tvalue = %3.12f\tcontrol_evaluator = %3.12f\n", i, src_to_ctrl_neighborhoods[i][j].index, src_to_ctrl_neighborhoods[i][j].value, control_evaluator(i, src_to_ctrl_neighborhoods[i][j].index, src_to_ctrl_neighborhoods[i][j].value));
                     }
                     std::sort(src_to_ctrl_sorted[i].begin(), src_to_ctrl_sorted[i].end(), typename Neighbor<ScalarT>::IndexLessComparator());
                 }
             }
         }
+
+        // float hi = control_evaluator(121488, 120293, 0.000005980065);
+        // printf("temp = %3.12f\n", temp);
+
+        // for(int i = 0; i < 1; i++)
+        // {
+        //     printf("%d source point:\n", i);
+            
+        //     for(int j = 0; j < 4; j++)
+        //     {   
+        //         int index = src_to_ctrl_neighborhoods[i][j].index; // if use src_to_ctrl_sorted, segmentation fault would occur
+        //         printf("%d KNN::\n", j);
+        //         printf("index: %d\n", index);
+        //         printf("value: %3.12f\n", src_to_ctrl_neighborhoods[i][j].value);
+        //     }
+        //     printf("\n");
+        // }
 
         // Get regularization equation count and indices
         std::vector<size_t> reg_eq_ind(regularization_neighborhoods.size());
@@ -1982,6 +2013,21 @@ namespace cilantro {
 
                             corr_weight_sqrt = point_to_plane_weight_sqrt*std::sqrt(plane_corr_evaluator(corr.indexInFirst, corr.indexInSecond, corr.value));
                             corr_weight_nrm = corr_weight_sqrt/total_weight[corr.indexInSecond];
+                            
+                            // printf("%d plane correspondence: (s)%d -> (d)%d\n", i, corr.indexInSecond, corr.indexInFirst);
+                            // printf("total_weight[%d] = %f\tweight = %f\n", corr.indexInSecond, total_weight[corr.indexInSecond], weight);
+                            // printf("corr_weight_sqrt = %f\n", corr_weight_sqrt);
+                            // printf("point_to_plane_weight_sqrt = %f\n", point_to_plane_weight_sqrt);
+                            // printf("corr.value = %f\n", corr.value);
+                            // printf("plane_corr_evaluator = %f\t%d\t%d\t%3.12f\n", plane_corr_evaluator(corr.indexInFirst, corr.indexInSecond, corr.value), corr.indexInFirst, corr.indexInSecond, corr.value);
+                            // printf("corr_weight_sqrt = %f\n", corr_weight_sqrt);
+                            // printf("corr_weight_nrm = %f\n", corr_weight_nrm);
+
+                            // if(plane_corr_evaluator(corr.indexInFirst, corr.indexInSecond, corr.value) != 1.0f)
+                            // {
+                            //     printf("plane_corr_evaluator not equals to 1.0f\n");
+                            // }
+
                         } else {
                             corr_weight_sqrt = (ScalarT)0.0;
                             corr_weight_nrm = (ScalarT)0.0;
@@ -1990,6 +2036,17 @@ namespace cilantro {
                         const auto d = dst_p.col(corr.indexInFirst);
                         const auto n = dst_n.col(corr.indexInFirst);
                         const auto s = src_p.col(corr.indexInSecond);
+
+                        // float hi2 = plane_corr_evaluator(118029, 121488, 0.000005980066);
+                        // printf("%d point-to-plane correspondence(%d -> %d):\n", i, corr.indexInFirst, corr.indexInSecond);
+                        // printf("value: %3.12f\n", corr.value);
+
+                        // float diff[3] = { std::abs(d[0] - s[0]), std::abs(d[1] - s[1]), std::abs(d[2] - s[2]) };
+                        // float diff_square = diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2];
+                        // printf("sum of diff: %3.12f\n", diff[0] + diff[1] + diff[2]);
+                        // printf("sum of square of diff: %3.12f\n", diff_square);
+                        // printf("diff: %3.12f\n", std::sqrt(diff_square));
+                        // printf("\n");
 
                         internal::computeRotationTerms(angles_curr[0], angles_curr[1], angles_curr[2], rot_coeffs, d_rot_coeffs_da, d_rot_coeffs_db, d_rot_coeffs_dc);
 
@@ -2047,8 +2104,19 @@ namespace cilantro {
                     for (size_t j = 1; j < neighbors.size(); j++) {
                         size_t n_offset = 6*neighbors[j].index; // [neighbor] control point] assign the offset
                         weight = regularization_weight_sqrt*std::sqrt(reg_evaluator(neighbors[0].index, neighbors[j].index, neighbors[j].value));
-
+    
                         const auto n = control_p.col(neighbors[j].index);  // [neighbor] control point] assign the position
+
+                        // float hi3 = reg_evaluator(3, 264, 0.000014236730);
+                        // printf("%d regularization(%d -> %d):\n", i, neighbors[0].index, neighbors[j].index);
+                        // printf("value: %3.12f\n", neighbors[j].value);
+
+                        // float diff[3] = { std::abs(n[0] - s[0]), std::abs(n[1] - s[1]), std::abs(n[2] - s[2]) };
+                        // float diff_square = diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2];
+                        // printf("sum of diff: %3.12f\n", diff[0] + diff[1] + diff[2]);
+                        // printf("sum of square of diff: %3.12f\n", diff_square);
+                        // printf("diff: %3.12f\n", std::sqrt(diff_square));
+                        // printf("reg_evaluator() = %f\n", reg_evaluator(neighbors[0].index, neighbors[j].index, neighbors[j].value));
 
                         // [neighbor control point] compute the rotation matrix and its derivative
                         angles_curr_n.noalias() = tforms_vec.template segment<3>(n_offset);

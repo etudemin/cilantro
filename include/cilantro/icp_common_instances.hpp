@@ -124,6 +124,9 @@ namespace cilantro {
 
         template <class TransformT, class CorrSearchT>
         using DefaultCombinedMetricSparseWarpFieldICP = CombinedMetricSparseWarpFieldICP<TransformT,CorrSearchT,UnityWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar>,UnityWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar>,RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true>,RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true>>;
+        
+        // template <class TransformT, class CorrSearchT>
+        // using DefaultCombinedMetricSparseWarpFieldICP = CombinedMetricSparseWarpFieldICP<TransformT,CorrSearchT,RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true>,RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true>,RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true>,RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true>>;
 
         template <class TransformT, class CorrSearchT>
         class DefaultCombinedMetricSparseWarpFieldICPEntities {
@@ -143,6 +146,8 @@ namespace cilantro {
             CorrSearchT corr_search_;
             UnityWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar> point_corr_weight_eval_;
             UnityWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar> plane_corr_weight_eval_;
+            // RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true> point_corr_weight_eval_;
+            // RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true> plane_corr_weight_eval_;
             RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true> control_weight_eval_;
             RBFKernelWeightEvaluator<typename TransformT::Scalar,typename TransformT::Scalar,true> reg_weight_eval_;
         };

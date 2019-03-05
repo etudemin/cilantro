@@ -55,8 +55,9 @@ namespace cilantro {
 
         inline RBFKernelWeightEvaluator& setSigma(ValueT sigma) {
             coeff_ = -(WeightT)(0.5)/(sigma*sigma);
+            // printf("coeff_ in setSigma() = %f\n", coeff_);
             return *this;
-        }
+        }                                        
 
         template <bool dist_sq = distances_are_squared>
         inline typename std::enable_if<dist_sq,WeightT>::type operator()(ValueT dist) const {

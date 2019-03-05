@@ -60,6 +60,29 @@ int main(int argc, char ** argv) {
     cilantro::Timer timer;
     timer.start();
 
+    // for(int i = 0; i < 1; i++)
+    // {
+    //     Eigen::Vector3f src_p = src.points.col(i);
+    //     printf("%d source point: (%f, %f, %f)\n", i, src_p[0], src_p[1], src_p[2]);
+        
+    //     for(int j = 0; j < 4; j++)
+    //     {   
+    //         int index = src_to_control_nn[i][j].index;
+    //         Eigen::Vector3f ctrl_p = control_points.col(index);
+    //         printf("%d KNN: (%f, %f, %f):\n", j, ctrl_p[0], ctrl_p[1], ctrl_p[2]);
+    //         printf("index: %d\n", index);
+    //         printf("value: %3.12f\n", src_to_control_nn[i][j].value);
+
+    //         float diff[3] = { std::abs(src_p[0] - ctrl_p[0]), std::abs(src_p[1] - ctrl_p[1]), std::abs(src_p[2] - ctrl_p[2]) };
+    //         float diff_square = diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2];
+    //         printf("sum of diff: %3.12f\n", diff[0] + diff[1] + diff[2]);
+    //         printf("sum of square of diff: %3.12f\n", diff_square);
+    //         printf("diff: %3.12f\n", std::sqrt(diff_square));
+    //         printf("\n");
+    //     }
+    //     printf("\n");
+    // }
+
 //    cilantro::SimpleCombinedMetricSparseAffineWarpFieldICP3f icp(dst.points, dst.normals, src.points, src_to_control_nn, control_points.cols(), regularization_nn);
     // cilantro::SimpleCombinedMetricSparseRigidWarpFieldICP3f icp(dst.points, dst.normals, src.points, src_to_control_nn, control_points.cols(), regularization_nn);
     cilantro::SimpleCombinedMetricSparseRigidWarpFieldICP3f icp(dst.points, dst.normals, src.points, control_points, src_to_control_nn, control_points.cols(), regularization_nn);
@@ -69,10 +92,10 @@ int main(int argc, char ** argv) {
     icp.controlWeightEvaluator().setSigma(src_to_control_sigma);
     icp.regularizationWeightEvaluator().setSigma(regularization_sigma);
 
-    icp.setMaxNumberOfIterations(15).setConvergenceTolerance(2.5e-3f);
+    icp.setMaxNumberOfIterations(15).setConvergenceTolerance(2.5e-5f);
     icp.setMaxNumberOfGaussNewtonIterations(1).setGaussNewtonConvergenceTolerance(5e-4f);
     icp.setMaxNumberOfConjugateGradientIterations(500).setConjugateGradientConvergenceTolerance(1e-5f);
-    icp.setPointToPointMetricWeight(0.0f).setPointToPlaneMetricWeight(1.0f).setStiffnessRegularizationWeight(500.0f);
+    icp.setPointToPointMetricWeight(0.0f).setPointToPlaneMetricWeight(1.0f).setStiffnessRegularizationWeight(200.0f);
     icp.setHuberLossBoundary(1e-2f);
 
     auto tf_est = icp.estimate().getDenseWarpField();
